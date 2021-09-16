@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "target": "esnext",
+    "moduleResolution": "node",
+    "esModuleInterop": true
+  },
+  "files": [
+    "duality.tsx"
+  ]
+}
