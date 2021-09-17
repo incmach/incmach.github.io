@@ -1,10 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 
-let PixelSymbol = {
-  One: "white",
-  Another: "black",
-  YetAnother: "gray"
+enum PixelSymbol {
+  One = "white",
+  Another = "black",
+  YetAnother = "gray"
 };
 
 function getStartingLine(first, second) {
@@ -27,19 +27,35 @@ function getStartingLine(first, second) {
   return result;
 }
 
-let PunctuationMark = {
-  Nothing: ["∅", "X"],
-  Comma: [",", "wxw"],
-  Ellipsis: ['…', "xw"],
-  Period: [".", "wx"],
-  DoubleQuotes: ['"', "xwx"]
-};
+class PunctuationMark {
+  public readonly mark;
+  public readonly pattern;
+
+  private constructor([mark, pattern]: [string, string]) {
+    this.mark = mark;
+    this.pattern = pattern;
+  }
+
+  private static readonly Nothing = new PunctuationMark(["∅", "X"]);
+  private static readonly Comma = new PunctuationMark([",", "wxw"]);
+  private static readonly Ellipsis = new PunctuationMark(['…', "xw"]);
+  private static readonly Period = new PunctuationMark([".", "wx"]);
+  private static readonly DoubleQuotes = new PunctuationMark(['"', "xwx"]);
+
+  public static readonly All: PunctuationMark[] = [
+    PunctuationMark.Nothing,
+    PunctuationMark.Comma,
+    PunctuationMark.Ellipsis,
+    PunctuationMark.Period,
+    PunctuationMark.DoubleQuotes
+  ];
+}
 
 function findPunctuationMark(line) {
-  for (const it of Object.values(PunctuationMark)) {
+  for (const pm of PunctuationMark.All) {
     let i = 0;
     let punctuationMarkPositions = [];
-    for (const patternPart of it[1]) {
+    for (const patternPart of pm.pattern) {
       if (patternPart === "w") {
         if (i + 1 >= line.length || line[i] !== line[i + 1]) {
           punctuationMarkPositions = [];
@@ -68,7 +84,7 @@ function findPunctuationMark(line) {
       }
     }
     if (punctuationMarkPositions.length > 0 && i === line.length) {
-      return [punctuationMarkPositions, it[0]];
+      return [punctuationMarkPositions, pm.mark];
     }
   }
   return undefined;
@@ -94,7 +110,15 @@ function getPossibleLines(line, position) {
   }
 }
 
-class Line extends React.Component {
+type LineProps = {
+  clickable: boolean;
+  onClick: () => void;
+  pixels: PixelSymbol[];
+  onDropOnPixel: (pixelNumber: number) => void;
+  punctuationMark: [number[], PixelSymbol];
+}
+
+class Line extends React.Component<LineProps> {
   render() {
     return React.createElement(
       "div", {
@@ -121,7 +145,17 @@ class Line extends React.Component {
   }
 }
 
-class SpaceView extends React.Component {
+type SpaceViewProps = {
+  startingLine: PixelSymbol[];
+}
+
+type SpaceViewState = {
+  foundMarks: Set<PunctuationMark>;
+  inStep: boolean;
+  lines: PixelSymbol[][];
+}
+
+class SpaceView extends React.Component<SpaceViewProps, SpaceViewState> {
   constructor(props) {
     super(props);
     this.state = {
@@ -132,10 +166,10 @@ class SpaceView extends React.Component {
   }
 
   render() {
-    let lines = this.state.lines.map((line, line_number) => {
+    let lines : React.ReactElement<LineProps>[] = this.state.lines.map((line, lineNumber) => {
       let punctuationMark = this.state.inStep ? undefined : findPunctuationMark(line);
       return React.createElement(Line, {
-        key: line_number,
+        key: lineNumber,
         pixels: line,
         clickable: this.state.inStep || punctuationMark !== undefined,
         onDropOnPixel: index => this.setState({
@@ -144,6 +178,7 @@ class SpaceView extends React.Component {
         }),
         onClick: () => this.setState(s =>
           punctuationMark === undefined ? {
+            foundMarks: s.foundMarks,
             inStep: false,
             lines: [line]
           } : {
@@ -204,4 +239,4 @@ ReactDOM.render(
     },
     null),
   document.getElementById("wrapper"));
-	
+

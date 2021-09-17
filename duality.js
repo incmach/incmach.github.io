@@ -1,10 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-let PixelSymbol = {
-    One: "white",
-    Another: "black",
-    YetAnother: "gray"
-};
+var PixelSymbol;
+(function (PixelSymbol) {
+    PixelSymbol["One"] = "white";
+    PixelSymbol["Another"] = "black";
+    PixelSymbol["YetAnother"] = "gray";
+})(PixelSymbol || (PixelSymbol = {}));
+;
 function getStartingLine(first, second) {
     let [firstSymbol, firstCount] = first;
     let [secondSymbol, secondCount] = second;
@@ -23,18 +25,31 @@ function getStartingLine(first, second) {
     }
     return result;
 }
-let PunctuationMark = {
-    Nothing: ["∅", "X"],
-    Comma: [",", "wxw"],
-    Ellipsis: ['…', "xw"],
-    Period: [".", "wx"],
-    DoubleQuotes: ['"', "xwx"]
-};
+class PunctuationMark {
+    mark;
+    pattern;
+    constructor([mark, pattern]) {
+        this.mark = mark;
+        this.pattern = pattern;
+    }
+    static Nothing = new PunctuationMark(["∅", "X"]);
+    static Comma = new PunctuationMark([",", "wxw"]);
+    static Ellipsis = new PunctuationMark(['…', "xw"]);
+    static Period = new PunctuationMark([".", "wx"]);
+    static DoubleQuotes = new PunctuationMark(['"', "xwx"]);
+    static All = [
+        PunctuationMark.Nothing,
+        PunctuationMark.Comma,
+        PunctuationMark.Ellipsis,
+        PunctuationMark.Period,
+        PunctuationMark.DoubleQuotes
+    ];
+}
 function findPunctuationMark(line) {
-    for (const it of Object.values(PunctuationMark)) {
+    for (const pm of PunctuationMark.All) {
         let i = 0;
         let punctuationMarkPositions = [];
-        for (const patternPart of it[1]) {
+        for (const patternPart of pm.pattern) {
             if (patternPart === "w") {
                 if (i + 1 >= line.length || line[i] !== line[i + 1]) {
                     punctuationMarkPositions = [];
@@ -66,7 +81,7 @@ function findPunctuationMark(line) {
             }
         }
         if (punctuationMarkPositions.length > 0 && i === line.length) {
-            return [punctuationMarkPositions, it[0]];
+            return [punctuationMarkPositions, pm.mark];
         }
     }
     return undefined;
@@ -135,6 +150,7 @@ class SpaceView extends React.Component {
                     lines: getPossibleLines(line, index)
                 }),
                 onClick: () => this.setState(s => punctuationMark === undefined ? {
+                    foundMarks: s.foundMarks,
                     inStep: false,
                     lines: [line]
                 } : {
