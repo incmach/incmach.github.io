@@ -139,10 +139,10 @@ class SpaceView extends React.Component {
         };
     }
     render() {
-        let lines = this.state.lines.map((line, line_number) => {
-            let punctuationMark = this.state.inStep ? undefined : findPunctuationMark(line);
-            return React.createElement(Line, {
-                key: line_number,
+        let lines = this.state.lines.map((line, lineNumber) => {
+            const punctuationMark = this.state.inStep ? undefined : findPunctuationMark(line);
+            const props = {
+                key: lineNumber,
                 pixels: line,
                 clickable: this.state.inStep || punctuationMark !== undefined,
                 onDropOnPixel: index => this.setState({
@@ -159,7 +159,8 @@ class SpaceView extends React.Component {
                     lines: [this.props.startingLine]
                 }),
                 punctuationMark: punctuationMark
-            });
+            };
+            return React.createElement(Line, props);
         });
         let punctuationMark = lines.map(it => it.props.punctuationMark).find(it => it !== undefined);
         let done = this.state.foundMarks.size === Object.values(PunctuationMark).length;

@@ -51,7 +51,7 @@ class PunctuationMark {
   ];
 }
 
-function findPunctuationMark(line) {
+function findPunctuationMark(line) : [number[], PunctuationMark]{
   for (const pm of PunctuationMark.All) {
     let i = 0;
     let punctuationMarkPositions = [];
@@ -111,11 +111,12 @@ function getPossibleLines(line, position) {
 }
 
 type LineProps = {
+  key: number;
   clickable: boolean;
   onClick: () => void;
   pixels: PixelSymbol[];
   onDropOnPixel: (pixelNumber: number) => void;
-  punctuationMark: [number[], PixelSymbol];
+  punctuationMark?: [number[], PunctuationMark];
 }
 
 class Line extends React.Component<LineProps> {
@@ -167,8 +168,8 @@ class SpaceView extends React.Component<SpaceViewProps, SpaceViewState> {
 
   render() {
     let lines : React.ReactElement<LineProps>[] = this.state.lines.map((line, lineNumber) => {
-      let punctuationMark = this.state.inStep ? undefined : findPunctuationMark(line);
-      return React.createElement(Line, {
+      const punctuationMark = this.state.inStep ? undefined : findPunctuationMark(line);
+      const  props : LineProps = {
         key: lineNumber,
         pixels: line,
         clickable: this.state.inStep || punctuationMark !== undefined,
@@ -187,7 +188,8 @@ class SpaceView extends React.Component<SpaceViewProps, SpaceViewState> {
             lines: [this.props.startingLine]
           }),
         punctuationMark: punctuationMark
-      });
+      };
+      return React.createElement(Line, props);
     });
     let punctuationMark = lines.map(it => it.props.punctuationMark).find(it => it !== undefined);
     let done = this.state.foundMarks.size === Object.values(PunctuationMark).length;
