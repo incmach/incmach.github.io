@@ -104,28 +104,13 @@ function getPossibleLines(line, position) {
         });
     }
 }
-class Line extends React.Component {
-    render() {
-        return React.createElement("div", {
-            className: "line" + (this.props.clickable ? " clickable" : ""),
-            onClick: ev => this.props.onClick()
-        }, this.props.pixels.map((symbol, index) => {
-            return React.createElement("div", {
-                key: index,
-                className: symbol + " pixel",
-                onDragOver: ev => {
-                    ev.preventDefault();
-                    ev.dataTransfer.dropEffect = "move";
-                },
-                onDrop: ev => {
-                    ev.preventDefault();
-                    this.props.onDropOnPixel(index);
-                },
-            }, this.props.punctuationMark !== undefined && this.props.punctuationMark[0].includes(index) ?
-                this.props.punctuationMark[1] :
-                null);
-        }));
-    }
+function Line(props) {
+    const result = React.createElement("div", { className: "line" + (props.clickable ? " clickable" : ""), onClick: ev => props.onClick() }, props.pixels.map((symbol, index) => React.createElement("div", { key: index, className: symbol + " pixel", onDragOver: ev => { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; }, onDrop: ev => { ev.preventDefault(); props.onDropOnPixel(index); } }, props.punctuationMark !== undefined && props.punctuationMark[0].includes(index)
+        ?
+            props.punctuationMark[1]
+        :
+            null)));
+    return result;
 }
 class SpaceView extends React.Component {
     constructor(props) {
@@ -139,15 +124,7 @@ class SpaceView extends React.Component {
     render() {
         let lines = this.state.lines.map((line, lineNumber) => {
             const punctuationMark = this.state.inStep ? undefined : findPunctuationMark(line);
-            const props = {
-                key: lineNumber,
-                pixels: line,
-                clickable: this.state.inStep || punctuationMark !== undefined,
-                onDropOnPixel: index => this.setState({
-                    inStep: true,
-                    lines: getPossibleLines(line, index)
-                }),
-                onClick: () => this.setState(s => punctuationMark === undefined ? {
+            let result = React.createElement(Line, { key: lineNumber, pixels: line, clickable: this.state.inStep || punctuationMark !== undefined, onDropOnPixel: index => this.setState({ inStep: true, lines: getPossibleLines(line, index) }), onClick: () => this.setState(s => punctuationMark === undefined ? {
                     foundMarks: s.foundMarks,
                     inStep: false,
                     lines: [line]
@@ -155,39 +132,20 @@ class SpaceView extends React.Component {
                     foundMarks: new Set(Array.from(s.foundMarks).concat(punctuationMark[1])),
                     inStep: false,
                     lines: [this.props.startingLine]
-                }),
-                punctuationMark: punctuationMark
-            };
-            return React.createElement(Line, props);
+                }), punctuationMark: punctuationMark });
+            return result;
         });
         let punctuationMark = lines.map(it => it.props.punctuationMark).find(it => it !== undefined);
-        let done = this.state.foundMarks.size === Object.values(PunctuationMark).length;
+        let done = this.state.foundMarks.size === PunctuationMark.All.length;
         let result = [];
         if (!this.state.inStep) {
-            result.push(React.createElement("div", {
-                className: "goals" + (this.state.foundMarks.size === 0 ? " invisible" : ""),
-                key: -3
-            }, Object.values(PunctuationMark).map(([it, _]) => React.createElement("span", {
-                key: it,
-                className: this.state.foundMarks.has(it) ? "achieved" : ""
-            }, it))));
+            result.push(React.createElement("div", { key: -3, className: "goals" + (this.state.foundMarks.size === 0 ? " invisible" : "") }, PunctuationMark.All.map(it => React.createElement("span", { key: it.mark, className: this.state.foundMarks.has(it.mark) ? "achieved" : "" }, it.mark))));
             if (done) {
-                result.push(React.createElement("div", {
-                    className: "goals",
-                    key: -2
-                }, React.createElement("span", {
-                    className: "achieved"
-                }, "That's all, folks!")));
+                result.push(React.createElement("div", { className: "goals", key: -2 },
+                    React.createElement("span", { className: "achieved" }, "That's all, folks!")));
             }
             else if (punctuationMark === undefined) {
-                result.push(React.createElement("div", {
-                    key: -1,
-                    className: "variable pixel",
-                    draggable: true,
-                    onDragStart: ev => {
-                        ev.dataTransfer.effectAllowed = "move";
-                    }
-                }, "X"));
+                result.push(React.createElement("div", { key: -1, className: "variable pixel", draggable: true, onDragStart: ev => ev.dataTransfer.effectAllowed = "move" }, "X"));
             }
         }
         if (!done) {
@@ -196,6 +154,6 @@ class SpaceView extends React.Component {
         return result;
     }
 }
-ReactDOM.render(React.createElement(SpaceView, {
-    startingLine: getStartingLine([PixelSymbol.One, 3], [PixelSymbol.Another, 3])
-}, null), document.getElementById("wrapper"));
+ReactDOM.render(
+//<div>!!!</div>,
+React.createElement(SpaceView, { startingLine: getStartingLine([PixelSymbol.One, 3], [PixelSymbol.Another, 3]) }), document.getElementById("wrapper"));

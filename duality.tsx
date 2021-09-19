@@ -119,31 +119,25 @@ type LineProps = {
   punctuationMark?: [number[], PunctuationMark];
 }
 
-class Line extends React.Component<LineProps> {
-  render() {
-    return React.createElement(
-      "div", {
-        className: "line" + (this.props.clickable ? " clickable" : ""),
-        onClick: ev => this.props.onClick()
-      },
-      this.props.pixels.map((symbol, index) => {
-        return React.createElement("div", {
-            key: index,
-            className: symbol + " pixel",
-            onDragOver: ev => {
-              ev.preventDefault();
-              ev.dataTransfer.dropEffect = "move";
-            },
-            onDrop: ev => {
-              ev.preventDefault();
-              this.props.onDropOnPixel(index);
-            },
-          },
-          this.props.punctuationMark !== undefined && this.props.punctuationMark[0].includes(index) ?
-          this.props.punctuationMark[1] :
-          null)
-      }));
-  }
+function Line(props: LineProps) {
+    const result =
+      <div className={"line" + (props.clickable ? " clickable" : "")} onClick={ev => props.onClick()}>
+        {props.pixels.map((symbol, index) => 
+          <div
+              key = {index}
+              className = {symbol + " pixel"}
+              onDragOver = { ev => { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; } }
+              onDrop = { ev => { ev.preventDefault(); props.onDropOnPixel(index); } }>
+            {
+              props.punctuationMark !== undefined && props.punctuationMark[0].includes(index)
+              ?
+              props.punctuationMark[1]
+              :
+              null
+            }
+          </div>)} 
+      </div>;
+    return result;
 }
 
 type SpaceViewProps = {
@@ -169,62 +163,42 @@ class SpaceView extends React.Component<SpaceViewProps, SpaceViewState> {
   render() {
     let lines : React.ReactElement<LineProps>[] = this.state.lines.map((line, lineNumber) => {
       const punctuationMark = this.state.inStep ? undefined : findPunctuationMark(line);
-      const  props : LineProps = {
-        key: lineNumber,
-        pixels: line,
-        clickable: this.state.inStep || punctuationMark !== undefined,
-        onDropOnPixel: index => this.setState({
-          inStep: true,
-          lines: getPossibleLines(line, index)
-        }),
-        onClick: () => this.setState(s =>
-          punctuationMark === undefined ? {
-            foundMarks: s.foundMarks,
-            inStep: false,
-            lines: [line]
-          } : {
-            foundMarks: new Set(Array.from(s.foundMarks).concat(punctuationMark[1])),
-            inStep: false,
-            lines: [this.props.startingLine]
-          }),
-        punctuationMark: punctuationMark
-      };
-      return React.createElement(Line, props);
+      let result : React.ReactElement<LineProps> =
+        <Line
+          key = {lineNumber}
+          pixels = {line}
+          clickable = {this.state.inStep || punctuationMark !== undefined} 
+          onDropOnPixel = { index => this.setState({ inStep: true, lines: getPossibleLines(line, index) }) }
+          onClick = { () => this.setState(s =>
+            punctuationMark === undefined ? {
+              foundMarks: s.foundMarks,
+              inStep: false,
+              lines: [line]
+            } : {
+              foundMarks: new Set(Array.from(s.foundMarks).concat(punctuationMark[1])),
+              inStep: false,
+              lines: [this.props.startingLine]
+            })
+          }
+          punctuationMark = { punctuationMark } />
+      return result;
     });
     let punctuationMark = lines.map(it => it.props.punctuationMark).find(it => it !== undefined);
-    let done = this.state.foundMarks.size === Object.values(PunctuationMark).length;
+    let done = this.state.foundMarks.size === PunctuationMark.All.length;
 
     let result = [];
     if (!this.state.inStep) {
       result.push(
-        React.createElement("div", {
-            className: "goals" + (this.state.foundMarks.size === 0 ? " invisible" : ""),
-            key: -3
-          },
-          Object.values(PunctuationMark).map(([it, _]) =>
-            React.createElement("span", {
-              key: it,
-              className: this.state.foundMarks.has(it) ? "achieved" : ""
-            }, it))));
+        <div key={-3} className={ "goals" + (this.state.foundMarks.size === 0 ? " invisible" : "") }>
+          {PunctuationMark.All.map(it =>
+            <span key={it.mark} className={ this.state.foundMarks.has(it.mark) ? "achieved" : "" }>{it.mark}</span>)}
+        </div>);
       if (done) {
         result.push(
-          React.createElement("div", {
-              className: "goals",
-              key: -2
-            },
-            React.createElement("span", {
-              className: "achieved"
-            }, "That's all, folks!")));
+          <div className="goals" key={-2}><span className="achieved">That's all, folks!</span></div>);
       } else if (punctuationMark === undefined) {
         result.push(
-          React.createElement("div", {
-            key: -1,
-            className: "variable pixel",
-            draggable: true,
-            onDragStart: ev => {
-              ev.dataTransfer.effectAllowed = "move";
-            }
-          }, "X"));
+          <div key={-1} className="variable pixel" draggable={true} onDragStart={ ev => ev.dataTransfer.effectAllowed = "move" }>X</div>);
       }
     }
     if (!done) {
@@ -235,9 +209,6 @@ class SpaceView extends React.Component<SpaceViewProps, SpaceViewState> {
 }
 
 ReactDOM.render(
-  React.createElement(
-    SpaceView, {
-      startingLine: getStartingLine([PixelSymbol.One, 3], [PixelSymbol.Another, 3])
-    },
-    null),
+  //<div>!!!</div>,
+  <SpaceView startingLine={getStartingLine([PixelSymbol.One, 3], [PixelSymbol.Another, 3])} />,
   document.getElementById("wrapper"));
