@@ -1,5 +1,5 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
+/// <reference types="react" />
+/// <reference types="react-dom" />
 
 enum PixelSymbol {
   One = "white",
@@ -241,4 +241,3 @@ ReactDOM.render(
     },
     null),
   document.getElementById("wrapper"));
-

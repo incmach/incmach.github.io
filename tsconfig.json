@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
     "jsx": "react",
-    "target": "esnext",
-    "moduleResolution": "node",
-    "esModuleInterop": true
+    "target": "es2020",
+    "module": "none",
+    "moduleResolution": "node"
   },
   "files": [
     "duality.tsx"

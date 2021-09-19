@@ -1,5 +1,5 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
+/// <reference types="react" />
+/// <reference types="react-dom" />
 var PixelSymbol;
 (function (PixelSymbol) {
     PixelSymbol["One"] = "white";
@@ -26,25 +26,23 @@ function getStartingLine(first, second) {
     return result;
 }
 class PunctuationMark {
-    mark;
-    pattern;
     constructor([mark, pattern]) {
         this.mark = mark;
         this.pattern = pattern;
     }
-    static Nothing = new PunctuationMark(["∅", "X"]);
-    static Comma = new PunctuationMark([",", "wxw"]);
-    static Ellipsis = new PunctuationMark(['…', "xw"]);
-    static Period = new PunctuationMark([".", "wx"]);
-    static DoubleQuotes = new PunctuationMark(['"', "xwx"]);
-    static All = [
-        PunctuationMark.Nothing,
-        PunctuationMark.Comma,
-        PunctuationMark.Ellipsis,
-        PunctuationMark.Period,
-        PunctuationMark.DoubleQuotes
-    ];
 }
+PunctuationMark.Nothing = new PunctuationMark(["∅", "X"]);
+PunctuationMark.Comma = new PunctuationMark([",", "wxw"]);
+PunctuationMark.Ellipsis = new PunctuationMark(['…', "xw"]);
+PunctuationMark.Period = new PunctuationMark([".", "wx"]);
+PunctuationMark.DoubleQuotes = new PunctuationMark(['"', "xwx"]);
+PunctuationMark.All = [
+    PunctuationMark.Nothing,
+    PunctuationMark.Comma,
+    PunctuationMark.Ellipsis,
+    PunctuationMark.Period,
+    PunctuationMark.DoubleQuotes
+];
 function findPunctuationMark(line) {
     for (const pm of PunctuationMark.All) {
         let i = 0;
