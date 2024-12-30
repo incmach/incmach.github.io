@@ -294,7 +294,7 @@ void main() {
 		if (current_growths.length == 0) {
 			let new_source;
 			do {
-				new_source = [(Math.random() - 0.5)*3, -(Math.random() - 0.4)*10/6, 0];
+				new_source = [(Math.random() - 0.5)*2*gl.canvas.width/gl.canvas.height, -(Math.random() - 0.4)*10/6, 0];
 			} while (SCALED_EYES_COORDS.some((eye) => v3.distance(eye, new_source) < 2*EYE_R*1.15/gl.canvas.height));
 			let new_color = COLORS[Math.floor(Math.random()*COLORS.length)].slice();
 			if (Math.random() < 0.1) {
