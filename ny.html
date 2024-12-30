@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+    <title></title>
+    <style>
+      body {
+          margin: 0;
+          font-family: monospace;
+      }
+      canvas {
+          display: block;
+          width: 100vw;
+          height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+  </body>
+  <script id="vs" type="notjs">
+precision mediump float;
+
+attribute vec3 pos;
+
+uniform mat4 reposition;
+
+void main() {
+  gl_Position = reposition*vec4(pos, 1);
+}
+  </script>
+  <script id="fs" type="notjs">
+precision mediump float;
+
+uniform vec4 color;
+
+void main() {
+  gl_FragColor = color;
+}
+  </script>
+  <script id="init-bg-vs" type="notjs">
+precision mediump float;
+
+attribute vec3 pos;
+
+uniform vec2 u_resolution;
+
+varying vec2 v_position;
+varying float v_size;
+
+void main() {
+  gl_Position = vec4(pos, 1);
+  v_position = u_resolution*(pos.xy + 1.0)/2.0;
+  gl_PointSize = 200.0;
+  v_size = 200.0;
+}
+  </script>
+  <script id="init-bg-fs" type="notjs">
+precision mediump float;
+
+varying vec2 v_position;
+varying float v_size;
+
+void main() {
+  
+  gl_FragColor = vec4(0, 0, 0, distance(v_position, gl_FragCoord.xy)*2.0 <= v_size  ? 1 : 0);
+}
+  </script>
+  <script id="bg-vs" type="notjs">
+precision mediump float;
+
+attribute vec3 pos;
+attribute vec2 a_texcoord;
+
+varying vec2 v_texcoord;
+
+void main() {
+  gl_Position = vec4(pos, 1);
+  v_texcoord = a_texcoord;
+}
+  </script>
+  <script id="bg-fs" type="notjs">
+precision mediump float;
+
+varying vec2 v_texcoord;
+
+uniform sampler2D u_texture;
+
+void main() {
+  gl_FragColor = texture2D(u_texture, v_texcoord);
+}
+  </script>
+  <script src="twgl-full.js"></script>
+  <script>
+    
+	// We pick a point and draw to lines from it.
+	// Lines are defined by graph f, rotated by an angle
+	
+	function round(v) {
+		return Math.round(v*10000)/10000;
+	}
+	
+	function f(t, arg_multiplier, divider) {
+		const double_sin_arg = round(t*arg_multiplier);
+		let sin = 0;
+		if (double_sin_arg % 1 == 0) {
+			switch (double_sin_arg % 4) {
+				case 1:
+					sin = 1;
+					break;
+				case 3:
+					sin = -1;
+					break;
+				default:
+					break;
+			}
+		} else {
+			sin = Math.sin(double_sin_arg*Math.PI/2);
+		}
+		return round(sin/divider);
+	}
+	
+	function df(t, arg_multiplier, divider) {
+		// double_arg(LENGTH) == (2n+1)
+		const double_arg = round(t*arg_multiplier);
+		let cos = 0;
+		if (double_arg % 1 == 0) {
+			switch (double_arg % 4) {
+				case 0:
+					cos = 1;
+					break;
+				case 2:
+					cos = -1;
+					break;
+				default:
+					break;
+			}
+		} else {
+			cos = Math.cos(double_arg*Math.PI/2);
+		}
+		return round(cos*Math.PI*arg_multiplier/(2*divider));
+	}
+	
+	const HUGO_COLORS = [
+		[ 117, 105, 91 ], [ 167, 134, 103 ], [ 234, 208, 181 ], [ 122, 79, 44 ], [ 78, 55, 37 ],
+		[ 193, 176, 158 ], [ 122, 100, 77 ], [ 100, 87, 68], [ 112, 90, 69 ], [ 135, 113, 90]
+		];
+	const MINNIE_COLORS = [
+		[ 29, 22, 14 ],
+		[ 109, 104, 100 ],
+		[ 129, 124, 120 ],
+		[ 47, 39, 36 ],
+		[ 96, 91, 87 ],
+		[ 160, 152, 149 ],
+		];
+	const EYES = [ [ -0.5, 0.5, 0 ], [ 0.5, 0.5, 0 ] ];
+	const EYE_R = 50.0;
+	
+	const m4 = twgl.m4
+	const v3 = twgl.v3
+    const gl = document.querySelector("#c").getContext("webgl2");
+	twgl.resizeCanvasToDisplaySize(gl.canvas);
+
+
+	var SCALED_EYES_COORDS = [ ];
+	for (let eye of EYES) {
+		SCALED_EYES_COORDS.push(
+			Array.from(
+				m4.transformPoint(
+					m4.scaling([ gl.canvas.width / gl.canvas.height, -1, 1 ]),
+					eye)));
+	}
+
+	const STEPS_COUNT = 200;
+	const arrays = {
+      pos: { numComponents: 3 },
+	  indices:  [...Array(STEPS_COUNT*2 + 1).keys()]
+    };
+    const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
+	
+	
+    const programInfo = twgl.createProgramInfo(gl, ["vs", "fs"]);    
+	const initBgProgramInfo = twgl.createProgramInfo(gl, ["init-bg-vs", "init-bg-fs"]);
+	const bgProgramInfo = twgl.createProgramInfo(gl, ["bg-vs", "bg-fs"]);
+	
+	MINNIE = window.location.href.endsWith("minnie");
+	
+	let centers = [];
+	let angles = [];
+	let LENGTH;
+	const SPEED = 0.6; // half screens per second
+	
+	function generate_a_hair() {
+		const ALPHA = Math.PI*(Math.random() + 0.25)/64;
+		const rotations = [ m4.rotationZ(-ALPHA), m4.rotationZ(ALPHA) ];
+		LENGTH = 0.6 + (Math.random() - 0.25)/5;
+		const c_t = ((MINNIE ? 3 : 7) + Math.round((Math.random() - 0.5)*2)*2)/LENGTH;
+		const c_sin = 64*Math.pow(-1, Math.round(Math.random())) + 32*(Math.random() - 0.5);
+		
+		let points = [ [ 0, 0, 0 ] ];
+		centers.length = 0;
+		centers.push([ 0, 0, 0 ]);
+		angles.length = 0;
+		angles.push(df(0));
+		
+		for (let i = 1; i <= STEPS_COUNT; ++i) {
+			const t = i*(LENGTH/STEPS_COUNT);
+			const f_t = f(t, c_t, 64);
+			for (let rotation_index = 0; rotation_index < 2; ++rotation_index) {
+				const r = rotations[rotation_index];
+				const new_point = m4.transformPoint(r, [f_t, t, 0])			
+				points.push(Array.from(new_point));
+			}
+			centers.push([f_t*Math.cos(ALPHA), t*Math.cos(ALPHA), 0])
+			angles.push(Math.atan(df(t, c_t, 64)));
+		}
+		twgl.setAttribInfoBufferFromArray(gl, bufferInfo.attribs.pos, points.flat());
+	}
+	
+	const stencilBufferInfo = twgl.createBufferInfoFromArrays(gl, 
+	{
+		pos: { numComponents: 3, data: [ 2, 2, -1, -2, 2, -1, 2, -0.001, -1, -2, -0.001, -1 ] },
+		indices: [ 0, 1, 2, 3 ]
+	});	
+	const initBgBufferInfo = twgl.createBufferInfoFromArrays(gl, 
+	{
+		pos: { numComponents: 3, data: EYES.flat() },
+		indices: [ 0, 1 ]
+	});	
+	const bgBufferInfo = twgl.createBufferInfoFromArrays(gl, 
+	{
+		pos: { numComponents: 3, data: [ 1, 1, 1, -1, 1, 1, 1, -1, 1, -1, -1, 1 ] },
+		a_texcoord: { numComponents: 2, data: [ 1, 1, 0, 1, 1, 0, 0, 0 ] },
+		indices: [ 0, 1, 2, 3 ]
+	});	
+
+	gl.enable(gl.DEPTH_TEST);
+	
+	gl.enable(gl.BLEND);
+	gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		
+	let cacheTexture = gl.createTexture();
+	{
+		gl.bindTexture(gl.TEXTURE_2D, cacheTexture);
+		const level = 0;
+		const internalFormat = gl.RGBA;
+		const border = 0;
+		const format = gl.RGBA;
+		const type = gl.UNSIGNED_BYTE;
+		const data = null;
+		// TODO: mipmap (although 2x texture looks decently well)
+		gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+					gl.canvas.width*2, gl.canvas.height*2, border,
+					format, type, data);
+
+		// set the filtering so we don't need mips
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	}
+	let cacheFramebuffer = gl.createFramebuffer();
+	gl.bindFramebuffer(gl.FRAMEBUFFER, cacheFramebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, cacheTexture, 0);
+	gl.clearColor(1.0, 1.0, 1.0, 1.0);
+	gl.clear(gl.COLOR_BUFFER_BIT);
+	gl.useProgram(initBgProgramInfo.program);
+	gl.viewport(0, 0, gl.canvas.width*2, gl.canvas.height*2);
+	twgl.setBuffersAndAttributes(gl, initBgProgramInfo, initBgBufferInfo);
+	twgl.setUniforms(initBgProgramInfo, { u_resolution: [ gl.canvas.width*2, gl.canvas.height*2 ] });
+	gl.drawElements(gl.POINTS, initBgBufferInfo.numElements, gl.UNSIGNED_SHORT, 0);
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+	
+	var done = false;
+		
+	let current_growths = [];
+	let COLORS = [];
+	
+	for (let c of (MINNIE ? MINNIE_COLORS : HUGO_COLORS)) {
+		let new_color = [];
+		for (let v of c) {
+			new_color.push(v/255);
+		}
+		new_color.push(0.95);
+		COLORS.push(new_color);
+	}
+	
+	function render(time) {
+
+		if (current_growths.length == 0) {
+			let new_source;
+			do {
+				new_source = [(Math.random() - 0.5)*3, -(Math.random() - 0.4)*10/6, 0];
+			} while (SCALED_EYES_COORDS.some((eye) => v3.distance(eye, new_source) < 2*EYE_R*1.15/gl.canvas.height));
+			let new_color = COLORS[Math.floor(Math.random()*COLORS.length)].slice();
+			if (Math.random() < 0.1) {
+				new_color[1] *= 1.75;
+			}
+			current_growths.push([
+				new_source, 
+				new_color,
+				time]);
+			generate_a_hair();
+		}
+		
+		const [ cur_source_point, cur_color, cur_start_time ] = current_growths[0];
+		time = time - cur_start_time;
+		
+		
+		let distance_traveled = time*0.001*SPEED;
+		let index_at_time = Math.floor(distance_traveled*STEPS_COUNT/LENGTH);
+
+		if (index_at_time >= STEPS_COUNT) {
+			index_at_time = STEPS_COUNT;
+			distance_traveled = index_at_time*LENGTH/STEPS_COUNT;
+			current_growths.pop();
+		}
+		
+		const uniforms = {
+			reposition:
+				m4.translate(
+					m4.rotateZ(
+						m4.translate(
+							m4.scaling([gl.canvas.height/gl.canvas.width, 1, 1]),
+							v3.mulScalar(cur_source_point, -1)),
+						angles[index_at_time]),
+					v3.add(v3.mulScalar(centers[index_at_time], -1), [0, 0, 1])),
+			color: cur_color
+		};
+
+
+		// Draw cached background
+		gl.depthFunc(gl.ALWAYS);
+
+		gl.useProgram(bgProgramInfo.program);
+		
+		twgl.setBuffersAndAttributes(gl, bgProgramInfo, bgBufferInfo);
+		twgl.setUniforms(bgProgramInfo, {
+			u_texture: cacheTexture
+		});
+		gl.drawElements(gl.TRIANGLE_STRIP, bgBufferInfo.numElements, gl.UNSIGNED_SHORT, 0);
+		
+		gl.useProgram(programInfo.program);
+
+		for (var attempt = 1; attempt <= 2 - current_growths.length; ++attempt) {
+		
+			// Screen the hair's upper part		
+			if (attempt == 2) {
+				gl.viewport(0, 0, gl.canvas.width*2, gl.canvas.height*2);
+				gl.bindFramebuffer(gl.FRAMEBUFFER, cacheFramebuffer);
+			}
+		
+			twgl.setBuffersAndAttributes(gl, programInfo, stencilBufferInfo);
+			twgl.setUniforms(programInfo, {
+				reposition: m4.translate(m4.scaling([gl.canvas.height/gl.canvas.width, 1, 1]), v3.mulScalar(cur_source_point, -1)),
+				color: [ 0, 0, 0, 0 ]
+			});
+			gl.drawElements(gl.TRIANGLE_STRIP, stencilBufferInfo.numElements, gl.UNSIGNED_SHORT, 0);
+
+			// Draw the hair
+			gl.depthFunc(gl.EQUAL);
+
+			twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
+			twgl.setUniforms(programInfo, uniforms);
+
+			gl.drawElements(gl.TRIANGLE_STRIP, bufferInfo.numElements, gl.UNSIGNED_SHORT, 0);
+			
+			if (attempt == 2) {
+				gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+				gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+			}
+			
+		}
+		requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+  </script>
+</html>
